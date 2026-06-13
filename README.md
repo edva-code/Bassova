@@ -15,20 +15,24 @@ The goal is to make learning, transcribing, or documenting bass lines faster, wi
 
 Automatic music transcription is a hard, well known problem in general, but bass is one of the more tractable starting points. Bass parts are usually monophonic (one note at a time), played in a well defined low frequency range, which makes pitch detection significantly more reliable than for full polyphonic mixes.
 
-## How it works (planned pipeline)
+## How it works
 
-1. Audio input: a recorded file, or eventually a live stream
-2. Source separation (for full mix recordings): isolate the bass from drums, guitars, and vocals
-3. Pitch and onset detection: identify which notes are played and when
-4. Rhythm quantization: align note timings to a musical grid (tempo, beats, bars)
-5. Fretboard mapping: choose a string and fret for each note
-6. Notation output: render as tab and/or standard sheet music (MusicXML)
+1. Audio input: load a recorded bass file (wav, mp3, flac)
+2. Pitch and onset detection: identify which notes are played and when, using Spotify's Basic Pitch model
+3. Fretboard mapping: assign each note to a string and fret on a standard 4-string bass (EADG)
+4. Tab rendering: lay out the notes on a 4-line ASCII tab grid, broken into bars
+5. Source separation (planned): isolate bass from a full band recording before transcription
+6. Sheet music export (planned): render as standard notation via MusicXML
 
 ## Status
 
-Milestone 1 complete. The core pitch detection pipeline is working: an audio file of an isolated bass recording is loaded, passed through Spotify's Basic Pitch model, and the detected notes (pitch, timing, amplitude) are printed to the terminal. Octave doubling artifacts, where the model detects both a fundamental note and its harmonic an octave above, are filtered out automatically.
+Early working prototype. The full pipeline from audio file to ASCII tab is running inside a desktop app:
 
-Next up: fretboard mapping (assigning each detected note to a string and fret on a standard 4-string bass) and tab output.
+- Load a bass recording and automatically detect its BPM (or use the tap tempo button)
+- Click "Generate tab" to run pitch detection, fretboard mapping, and tab rendering
+- The result is displayed as a 4-line ASCII tab broken into bars, with a horizontal scrollbar for longer recordings
+
+What is not built yet: sheet music export, source separation for full mixes, live input.
 
 ## Background
 
@@ -36,17 +40,20 @@ This is partly a personal project. I play bass myself, and I am building Bassova
 
 ## Roadmap
 
-1. Core pipeline: pitch and onset detection on a clean, isolated bass recording, producing a basic tab output
-2. Notation: rhythm quantization and export to standard sheet music (MusicXML)
-3. Full mix support: source separation to isolate bass from a full band recording
-4. Live mode: real time transcription from a live input
-5. Desktop app, followed by a mobile app, built on the same core engine
+- [x] Pitch and onset detection on an isolated bass recording
+- [x] Fretboard mapping to standard 4-string bass
+- [x] ASCII tab output broken into bars
+- [x] Desktop app with file picker, BPM detection, and tap tempo
+- [ ] Sheet music export (MusicXML)
+- [ ] Source separation for full band recordings
+- [ ] Live input mode
+- [ ] Mobile app
 
-## Planned tech stack
+## Tech stack
 
-- Core engine: Python (librosa, basic-pitch, pretty_midi, music21)
+- Core engine: Python (librosa, basic-pitch, pretty_midi)
 - Desktop UI: PySide6
-- Mobile UI: to be decided in a later phase
+- Mobile UI: to be decided
 
 ## Getting started
 
@@ -59,7 +66,7 @@ py -3.11 -m venv venv
 source venv/Scripts/activate   # Windows Git Bash
 # or: venv\Scripts\activate    # Windows PowerShell
 pip install -r requirements.txt
-python scripts/test_pitch_detection.py samples/your_bass_recording.wav
+python ui/desktop/main.py
 ```
 
 ## Contributing
