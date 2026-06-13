@@ -1,0 +1,3 @@
+basic-pitch
+librosa
+pretty_midi

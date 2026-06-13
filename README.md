@@ -26,7 +26,9 @@ Automatic music transcription is a hard, well known problem in general, but bass
 
 ## Status
 
-Early planning stage. No working code yet. Architecture and roadmap are being defined before implementation starts.
+Milestone 1 complete. The core pitch detection pipeline is working: an audio file of an isolated bass recording is loaded, passed through Spotify's Basic Pitch model, and the detected notes (pitch, timing, amplitude) are printed to the terminal. Octave doubling artifacts, where the model detects both a fundamental note and its harmonic an octave above, are filtered out automatically.
+
+Next up: fretboard mapping (assigning each detected note to a string and fret on a standard 4-string bass) and tab output.
 
 ## Background
 
@@ -48,11 +50,21 @@ This is partly a personal project. I play bass myself, and I am building Bassova
 
 ## Getting started
 
-There is nothing to install yet. This section will be filled in once the first prototype is working.
+Requires Python 3.11. Python 3.12 and 3.13 are not supported yet because TensorFlow (a dependency of Basic Pitch) does not support them.
+
+```bash
+git clone https://github.com/your-username/bassova.git
+cd bassova
+py -3.11 -m venv venv
+source venv/Scripts/activate   # Windows Git Bash
+# or: venv\Scripts\activate    # Windows PowerShell
+pip install -r requirements.txt
+python scripts/test_pitch_detection.py samples/your_bass_recording.wav
+```
 
 ## Contributing
 
-Not open for contributions yet, the project is still in the planning phase. Feel free to open an issue with ideas or feedback once the repository has its first commits.
+Not open for contributions yet. Feel free to open an issue with ideas or feedback.
 
 ## License
 
