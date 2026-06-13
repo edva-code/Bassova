@@ -1,7 +1,7 @@
 STRING_NAMES = ["E", "A", "D", "G"]
 
 
-def render_tab(mapped_notes, bpm=120, subdivisions=16):
+def render_tab(mapped_notes, bpm=120, subdivisions=16, bars_per_line=4):
     if not mapped_notes:
         return ""
 
@@ -18,14 +18,23 @@ def render_tab(mapped_notes, bpm=120, subdivisions=16):
         if step < total_steps:
             grid[note["string"]][step] = str(note["fret"])
 
-    lines = []
-    for string_index in reversed(range(4)):
-        row = []
-        for cell in grid[string_index]:
-            if cell:
-                row.append(cell.ljust(2, "-"))
-            else:
-                row.append("--")
-        lines.append(f"{STRING_NAMES[string_index]} |{''.join(row)}|")
+    steps_per_line = subdivisions * bars_per_line
+    sections = []
 
-    return "\n".join(lines)
+    for start in range(0, total_steps, steps_per_line):
+        end = min(start + steps_per_line, total_steps)
+        lines = []
+        for string_index in reversed(range(4)):
+            row = []
+            for i, step in enumerate(range(start, end)):
+                cell = grid[string_index][step]
+                if i > 0 and i % subdivisions == 0:
+                    row.append("|")
+                if cell:
+                    row.append(cell.ljust(2, "-"))
+                else:
+                    row.append("--")
+            lines.append(f"{STRING_NAMES[string_index]} |{''.join(row)}|")
+        sections.append("\n".join(lines))
+
+    return "\n\n".join(sections)

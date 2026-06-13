@@ -73,6 +73,7 @@ class MainWindow(QMainWindow):
 
         self.output = QTextEdit()
         self.output.setReadOnly(True)
+        self.output.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
         self.output.setFont(QFont("Courier New", 11))
         self.output.setPlaceholderText("Tab will appear here after you open a file and click Generate tab.")
         layout.addWidget(self.output)
