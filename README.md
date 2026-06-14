@@ -54,6 +54,7 @@ This is partly a personal project. I play bass myself, and I am building Bassova
 - [x] Ranked tempo candidate picker
 - [x] Rhythm quantization with offset correction and tempo fitting
 - [x] MIDI playback to check the result by ear
+- [x] Accuracy benchmark against synthetic ground truth
 - [ ] Sheet music export (MusicXML)
 - [ ] Source separation for full band recordings
 - [ ] Live input mode
@@ -63,6 +64,7 @@ This is partly a personal project. I play bass myself, and I am building Bassova
 
 - Core engine: Python (librosa, basic-pitch, numpy, pretty_midi)
 - Desktop UI: PySide6, with pygame for MIDI playback
+- Accuracy benchmark: mir_eval
 - Mobile UI: to be decided
 
 ## Getting started
@@ -78,6 +80,22 @@ source venv/Scripts/activate   # Windows Git Bash
 pip install -r requirements.txt
 python ui/desktop/main.py
 ```
+
+## Measuring accuracy
+
+Transcription accuracy is tracked with a small benchmark. It renders known bass
+lines to audio with a simple harmonic plucked-string synth, runs the detection
+pipeline, and scores the result against the ground truth with mir_eval, reporting
+note-level and onset F-measure per case plus an average:
+
+```bash
+python -m evaluation
+```
+
+Because the audio is synthetic, the numbers are a relative score for tuning and
+catching regressions, not an absolute promise about real recordings. A real
+recording paired with a ground-truth note list can be added as a new case to
+measure that too.
 
 ## Contributing
 

@@ -19,6 +19,9 @@ ONSET_TOLERANCE = 0.05  # seconds: notes starting within this window are simulta
 MIN_AMPLITUDE = 0.10    # drop very weak notes that are usually noise or string bleed
 STRONG_RATIO = 0.4      # in a cluster, only notes this loud relative to the peak count
 
+HARMONIC_INTERVALS = {12, 19, 24}  # octave, octave plus a fifth, two octaves
+HARMONIC_ONSET_WINDOW = 0.15       # seconds: a harmonic appears around its fundamental's onset
+
 
 def detect_notes(audio_path):
     """Run pitch and onset detection on an audio file.
@@ -55,6 +58,7 @@ def detect_notes(audio_path):
     notes.sort(key=lambda n: n["start_time"])
     notes = [n for n in notes if n["amplitude"] >= MIN_AMPLITUDE]
     notes = _collapse_simultaneous(notes)
+    notes = _suppress_harmonics(notes)
     return notes
 
 
@@ -84,3 +88,33 @@ def _collapse_simultaneous(notes):
         i = j
 
     return result
+
+
+def _suppress_harmonics(notes):
+    """Drop notes that look like overtones of a lower note that is still ringing.
+
+    The near-simultaneous collapse only catches partials that begin at the same
+    instant as the fundamental. In practice an octave or two-octave overtone often
+    onsets a little later while the fundamental sustains. Such a note is removed
+    when a louder note an octave, octave plus a fifth, or two octaves below it
+    started just before it and has not stopped yet.
+    """
+    keep = [True] * len(notes)
+    for i, higher in enumerate(notes):
+        if not keep[i]:
+            continue
+        for j, lower in enumerate(notes):
+            if i == j or not keep[j]:
+                continue
+            if higher["pitch_midi"] - lower["pitch_midi"] not in HARMONIC_INTERVALS:
+                continue
+            onset_gap = higher["start_time"] - lower["start_time"]
+            if (
+                0 <= onset_gap <= HARMONIC_ONSET_WINDOW
+                and higher["start_time"] <= lower["end_time"]
+                and higher["amplitude"] < lower["amplitude"]
+            ):
+                keep[i] = False
+                break
+
+    return [n for n, k in zip(notes, keep) if k]

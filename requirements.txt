@@ -4,3 +4,7 @@ numpy
 pretty_midi
 PySide6
 pygame
+
+# accuracy benchmark (python -m evaluation)
+mir_eval
+soundfile
