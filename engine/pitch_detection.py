@@ -11,7 +11,11 @@ MAX_FREQUENCY = 500.0   # Hz, above the highest practical fretted bass note
 
 # Basic Pitch detection thresholds. Bass notes are sustained and well defined,
 # so we can demand a longer minimum note length to reject transient blips.
-ONSET_THRESHOLD = 0.5
+# onset 0.6 (above Basic Pitch's 0.5 default) cuts false positives noticeably on
+# bass while keeping recall; the minimum note length stays below a sixteenth note
+# at typical tempos so fast runs are not dropped. Both were chosen with the
+# accuracy benchmark (python -m evaluation).
+ONSET_THRESHOLD = 0.6
 FRAME_THRESHOLD = 0.3
 MINIMUM_NOTE_LENGTH_MS = 90.0
 
@@ -23,8 +27,16 @@ HARMONIC_INTERVALS = {12, 19, 24}  # octave, octave plus a fifth, two octaves
 HARMONIC_ONSET_WINDOW = 0.15       # seconds: a harmonic appears around its fundamental's onset
 
 
-def detect_notes(audio_path):
+def detect_notes(
+    audio_path,
+    onset_threshold=ONSET_THRESHOLD,
+    frame_threshold=FRAME_THRESHOLD,
+    minimum_note_length=MINIMUM_NOTE_LENGTH_MS,
+):
     """Run pitch and onset detection on an audio file.
+
+    The detection thresholds default to the tuned constants but can be overridden,
+    which the accuracy benchmark uses to sweep parameter values.
 
     Returns:
         A list of dicts, one per detected note, each with:
@@ -35,9 +47,9 @@ def detect_notes(audio_path):
     """
     _, _, note_events = predict(
         audio_path,
-        onset_threshold=ONSET_THRESHOLD,
-        frame_threshold=FRAME_THRESHOLD,
-        minimum_note_length=MINIMUM_NOTE_LENGTH_MS,
+        onset_threshold=onset_threshold,
+        frame_threshold=frame_threshold,
+        minimum_note_length=minimum_note_length,
         minimum_frequency=MIN_FREQUENCY,
         maximum_frequency=MAX_FREQUENCY,
         melodia_trick=True,
