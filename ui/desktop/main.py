@@ -5,6 +5,7 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 
+import pygame
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QPushButton, QLabel, QSpinBox,
@@ -17,10 +18,11 @@ from engine.pitch_detection import detect_notes
 from engine.fretboard_mapping import map_to_fretboard
 from engine.tab_renderer import render_tab
 from engine.audio_input import detect_bpm
+from engine.midi_export import export_to_temp_midi
 
 
 class Worker(QObject):
-    finished = Signal(str)
+    finished = Signal(str, object)
     error = Signal(str)
 
     def __init__(self, audio_path, bpm):
@@ -33,9 +35,10 @@ class Worker(QObject):
             notes = detect_notes(self.audio_path)
             mapped = map_to_fretboard(notes)
             tab = render_tab(mapped, bpm=self.bpm)
-            self.finished.emit(tab)
+            self.finished.emit(tab, mapped)
         except Exception as e:
             self.error.emit(str(e))
+
 
 class BpmWorker(QObject):
     finished = Signal(int)
@@ -51,6 +54,7 @@ class BpmWorker(QObject):
         except Exception:
             self.finished.emit(120)
 
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -59,6 +63,10 @@ class MainWindow(QMainWindow):
         self.audio_path = None
         self._bpm_worker = None
         self._analysis_worker = None
+        self._mapped_notes = None
+        self._current_bpm = 120
+        self._taps = []
+        pygame.mixer.init()
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -90,7 +98,16 @@ class MainWindow(QMainWindow):
         self.generate_btn.clicked.connect(self.generate)
         controls.addWidget(self.generate_btn)
 
-        self._taps = []
+        self.play_btn = QPushButton("Play")
+        self.play_btn.setEnabled(False)
+        self.play_btn.clicked.connect(self.play_tab)
+        controls.addWidget(self.play_btn)
+
+        self.stop_btn = QPushButton("Stop")
+        self.stop_btn.setEnabled(False)
+        self.stop_btn.clicked.connect(self.stop_playback)
+        controls.addWidget(self.stop_btn)
+
         layout.addLayout(controls)
 
         self.output = QTextEdit()
@@ -114,6 +131,8 @@ class MainWindow(QMainWindow):
             self.audio_path = path
             self.file_label.setText(Path(path).name)
             self.generate_btn.setEnabled(False)
+            self.play_btn.setEnabled(False)
+            self.stop_btn.setEnabled(False)
             self.status.showMessage("Detecting BPM...")
 
             self._bpm_worker = BpmWorker(path)
@@ -125,7 +144,6 @@ class MainWindow(QMainWindow):
         self.bpm_spin.setValue(bpm)
         self.generate_btn.setEnabled(True)
         self.status.showMessage(f"Detected BPM: {bpm}. Click Generate tab.")
-
 
     def tap_tempo(self):
         now = time.time()
@@ -144,6 +162,8 @@ class MainWindow(QMainWindow):
 
         self.generate_btn.setEnabled(False)
         self.open_btn.setEnabled(False)
+        self.play_btn.setEnabled(False)
+        self.stop_btn.setEnabled(False)
         self.output.setPlainText("")
         self.status.showMessage("Analyzing...")
 
@@ -154,10 +174,13 @@ class MainWindow(QMainWindow):
         thread = threading.Thread(target=self._analysis_worker.run, daemon=True)
         thread.start()
 
-    def on_done(self, tab):
+    def on_done(self, tab, mapped_notes):
         self.output.setPlainText(tab)
+        self._mapped_notes = mapped_notes
+        self._current_bpm = self.bpm_spin.value()
         self.generate_btn.setEnabled(True)
         self.open_btn.setEnabled(True)
+        self.play_btn.setEnabled(True)
         self.status.showMessage("Done.")
 
     def on_error(self, message):
@@ -165,6 +188,20 @@ class MainWindow(QMainWindow):
         self.generate_btn.setEnabled(True)
         self.open_btn.setEnabled(True)
         self.status.showMessage("Error during analysis.")
+
+    def play_tab(self):
+        midi_path = export_to_temp_midi(self._mapped_notes, self._current_bpm)
+        pygame.mixer.music.load(midi_path)
+        pygame.mixer.music.play()
+        self.play_btn.setEnabled(False)
+        self.stop_btn.setEnabled(True)
+        self.status.showMessage("Playing...")
+
+    def stop_playback(self):
+        pygame.mixer.music.stop()
+        self.play_btn.setEnabled(True)
+        self.stop_btn.setEnabled(False)
+        self.status.showMessage("Stopped.")
 
 
 def main():
