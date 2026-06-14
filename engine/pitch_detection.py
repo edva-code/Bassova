@@ -1,6 +1,7 @@
 """Wrapper around Basic Pitch for note (pitch + onset) detection, tuned for bass."""
 
 from basic_pitch.inference import predict
+from basic_pitch.note_creation import model_frames_to_time
 
 # A 4-string bass spans roughly E1 (41 Hz) up to the high frets on the G string.
 # 5-string basses add a low B (31 Hz). Constraining Basic Pitch to this band
@@ -26,17 +27,31 @@ STRONG_RATIO = 0.4      # in a cluster, only notes this loud relative to the pea
 HARMONIC_INTERVALS = {12, 19, 24}  # octave, octave plus a fifth, two octaves
 HARMONIC_ONSET_WINDOW = 0.15       # seconds: a harmonic appears around its fundamental's onset
 
+# Second-pass recovery. The model often shows a clear onset for a note that its
+# own note-creation step dropped (common in fast runs where neighbouring onsets
+# compete). We scan the discarded onset salience map and add notes the main pass
+# missed, but only where nothing already explains that moment, so slow passages
+# are not flooded with re-trigger false positives.
+MIDI_OFFSET = 21                   # model note column 0 is MIDI 21 (A0, 27.5 Hz)
+RECOVERY_ONSET_THRESHOLD = 0.55    # onset salience needed to recover a missed note
+RECOVERY_MIN_MIDI = 28             # E1, lowest note on a 4-string bass
+RECOVERY_MAX_MIDI = 64             # top of the practical fretted range
+RECOVERY_MERGE_GAP = 0.06          # seconds: do not recover an onset this close to an existing one
+RECOVERY_MAX_DURATION = 1.5        # seconds: cap how far a recovered note is allowed to ring
+
 
 def detect_notes(
     audio_path,
     onset_threshold=ONSET_THRESHOLD,
     frame_threshold=FRAME_THRESHOLD,
     minimum_note_length=MINIMUM_NOTE_LENGTH_MS,
+    recover=True,
 ):
     """Run pitch and onset detection on an audio file.
 
     The detection thresholds default to the tuned constants but can be overridden,
-    which the accuracy benchmark uses to sweep parameter values.
+    which the accuracy benchmark uses to sweep parameter values. With recover on, a
+    second pass adds notes the model clearly saw but its note-creation step dropped.
 
     Returns:
         A list of dicts, one per detected note, each with:
@@ -45,7 +60,7 @@ def detect_notes(
             pitch_midi: MIDI note number (e.g. 40 = E1)
             amplitude: rough confidence/velocity value, 0 to 1
     """
-    _, _, note_events = predict(
+    model_output, _, note_events = predict(
         audio_path,
         onset_threshold=onset_threshold,
         frame_threshold=frame_threshold,
@@ -71,6 +86,13 @@ def detect_notes(
     notes = [n for n in notes if n["amplitude"] >= MIN_AMPLITUDE]
     notes = _collapse_simultaneous(notes)
     notes = _suppress_harmonics(notes)
+
+    if recover:
+        notes.extend(_recover_missed_notes(model_output, notes, frame_threshold))
+        notes.sort(key=lambda n: n["start_time"])
+        notes = _collapse_simultaneous(notes)
+        notes = _suppress_harmonics(notes)
+
     return notes
 
 
@@ -130,3 +152,73 @@ def _suppress_harmonics(notes):
                 break
 
     return [n for n, k in zip(notes, keep) if k]
+
+
+def _recover_missed_notes(model_output, existing, frame_threshold):
+    """Add notes the model clearly saw but its note-creation step did not emit.
+
+    We scan the onset salience map for strong local maxima in the bass range and
+    keep the ones that no detected note already explains. This targets recall in
+    fast passages without re-flooding sustained passages, since an onset landing
+    inside or beside an existing note is treated as already covered.
+    """
+    onset = model_output["onset"]
+    note = model_output["note"]
+    n_frames = onset.shape[0]
+    times = model_frames_to_time(n_frames)
+
+    recovered = []
+    for midi in range(RECOVERY_MIN_MIDI, RECOVERY_MAX_MIDI + 1):
+        column = onset[:, midi - MIDI_OFFSET]
+        for frame in range(n_frames):
+            value = column[frame]
+            if value < RECOVERY_ONSET_THRESHOLD:
+                continue
+            if frame > 0 and column[frame - 1] > value:
+                continue
+            if frame < n_frames - 1 and column[frame + 1] > value:
+                continue
+
+            start = float(times[frame])
+            if _already_covered(existing, recovered, start, midi):
+                continue
+
+            end = _estimate_end(note[:, midi - MIDI_OFFSET], frame, times, frame_threshold)
+            recovered.append(
+                {
+                    "start_time": round(start, 3),
+                    "end_time": round(end, 3),
+                    "pitch_midi": midi,
+                    "amplitude": round(float(value), 3),
+                }
+            )
+
+    return recovered
+
+
+def _already_covered(existing, recovered, start, midi):
+    for n in existing:
+        if abs(n["start_time"] - start) < RECOVERY_MERGE_GAP:
+            return True
+        if (
+            n["pitch_midi"] == midi
+            and n["start_time"] - RECOVERY_MERGE_GAP <= start <= n["end_time"] + RECOVERY_MERGE_GAP
+        ):
+            return True
+    for n in recovered:
+        if n["pitch_midi"] == midi and abs(n["start_time"] - start) < RECOVERY_MERGE_GAP:
+            return True
+    return False
+
+
+def _estimate_end(note_column, frame, times, frame_threshold):
+    """Walk the note salience forward to estimate when a recovered note stops."""
+    n_frames = len(note_column)
+    last = frame
+    while (
+        last + 1 < n_frames
+        and note_column[last + 1] >= frame_threshold
+        and times[last + 1] - times[frame] < RECOVERY_MAX_DURATION
+    ):
+        last += 1
+    return max(float(times[last]), float(times[frame]) + 0.05)

@@ -18,7 +18,7 @@ Automatic music transcription is a hard, well known problem in general, but bass
 ## How it works
 
 1. Audio input: load a recorded bass file (wav, mp3, flac)
-2. Pitch and onset detection: identify which notes are played and when, using Spotify's Basic Pitch model constrained to the bass frequency range. Octave and harmonic ghost notes are filtered out, and very weak detections are dropped
+2. Pitch and onset detection: identify which notes are played and when, using Spotify's Basic Pitch model constrained to the bass frequency range. Octave and harmonic ghost notes are filtered out, very weak detections are dropped, and a second pass reads the model's own salience map to recover clear onsets the first pass missed, which mainly helps fast passages
 3. Fretboard mapping: assign each note to a string and fret on a standard 4-string bass (EADG), using a weighted position cost so the hand stays in a natural low position
 4. Rhythm quantization: correct the grid phase offset so a take that does not start on the beat still lines up, refine the tempo to best fit the detected onsets, then snap each note to a sixteenth-note grid
 5. Tab rendering: lay out the notes on a 4-line ASCII tab grid, broken into bars, showing how long each note is held and the rests between notes
