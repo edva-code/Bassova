@@ -8,7 +8,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 import pygame
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
-    QHBoxLayout, QPushButton, QLabel, QSpinBox,
+    QHBoxLayout, QPushButton, QLabel, QSpinBox, QComboBox,
     QTextEdit, QFileDialog, QStatusBar,
 )
 from PySide6.QtGui import QFont
@@ -17,7 +17,7 @@ from PySide6.QtCore import QObject, Signal
 from engine.pitch_detection import detect_notes
 from engine.fretboard_mapping import map_to_fretboard
 from engine.tab_renderer import render_tab
-from engine.audio_input import detect_bpm
+from engine.audio_input import tempo_candidates
 from engine.midi_export import export_to_temp_midi
 
 
@@ -41,7 +41,7 @@ class Worker(QObject):
 
 
 class BpmWorker(QObject):
-    finished = Signal(int)
+    finished = Signal(object)
 
     def __init__(self, audio_path):
         super().__init__()
@@ -49,10 +49,10 @@ class BpmWorker(QObject):
 
     def run(self):
         try:
-            bpm = detect_bpm(self.audio_path)
-            self.finished.emit(bpm)
+            candidates = tempo_candidates(self.audio_path)
+            self.finished.emit(candidates)
         except Exception:
-            self.finished.emit(120)
+            self.finished.emit([120])
 
 
 class MainWindow(QMainWindow):
@@ -88,6 +88,12 @@ class MainWindow(QMainWindow):
         self.bpm_spin.setRange(40, 300)
         self.bpm_spin.setValue(120)
         controls.addWidget(self.bpm_spin)
+
+        self.bpm_combo = QComboBox()
+        self.bpm_combo.setMinimumWidth(100)
+        self.bpm_combo.setToolTip("Detected tempo candidates. Pick the one that matches.")
+        self.bpm_combo.currentIndexChanged.connect(self.on_candidate_picked)
+        controls.addWidget(self.bpm_combo)
 
         self.tap_btn = QPushButton("Tap")
         self.tap_btn.clicked.connect(self.tap_tempo)
@@ -140,10 +146,26 @@ class MainWindow(QMainWindow):
             thread = threading.Thread(target=self._bpm_worker.run, daemon=True)
             thread.start()
 
-    def on_bpm_detected(self, bpm):
-        self.bpm_spin.setValue(bpm)
+    def on_bpm_detected(self, candidates):
+        self.bpm_combo.blockSignals(True)
+        self.bpm_combo.clear()
+        for bpm in candidates:
+            self.bpm_combo.addItem(f"{bpm} BPM", bpm)
+        self.bpm_combo.setCurrentIndex(0)
+        self.bpm_combo.blockSignals(False)
+
+        if candidates:
+            self.bpm_spin.setValue(candidates[0])
         self.generate_btn.setEnabled(True)
-        self.status.showMessage(f"Detected BPM: {bpm}. Click Generate tab.")
+        listed = ", ".join(str(c) for c in candidates)
+        self.status.showMessage(
+            f"Tempo candidates: {listed}. Pick one or set BPM, then Generate tab."
+        )
+
+    def on_candidate_picked(self, index):
+        bpm = self.bpm_combo.itemData(index)
+        if bpm is not None:
+            self.bpm_spin.setValue(int(bpm))
 
     def tap_tempo(self):
         now = time.time()

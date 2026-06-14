@@ -30,12 +30,12 @@ Automatic music transcription is a hard, well known problem in general, but bass
 
 Early working prototype. The full pipeline from audio file to ASCII tab is running inside a desktop app:
 
-- Load a bass recording and automatically detect its BPM (or use the tap tempo button)
+- Load a bass recording and pick from a short list of ranked tempo candidates (or set the BPM manually, or use the tap tempo button)
 - Click "Generate tab" to run pitch detection, fretboard mapping, rhythm quantization, and tab rendering
 - The result is displayed as a 4-line ASCII tab broken into bars, with a horizontal scrollbar for longer recordings
 - Play the result back as MIDI to check by ear whether it matches the recording
 
-Pitch and fret accuracy is solid: detection is constrained to the bass range and harmonic ghost notes are filtered out. Rhythm is accurate once the BPM is roughly correct, since the tempo is then refined to fit the detected onsets. Automatic BPM detection on its own is still unreliable, so for the cleanest rhythm you may need to set or tap the tempo.
+Pitch and fret accuracy is solid: detection is constrained to the bass range and harmonic ghost notes are filtered out. Rhythm is accurate once the BPM is roughly correct, since the tempo is then refined to fit the detected onsets. A single automatic BPM guess is unreliable, so instead the app ranks several tempo candidates for you to choose from, and you can always set or tap the tempo.
 
 What is not built yet: sheet music export, source separation for full mixes, live input.
 
@@ -49,6 +49,7 @@ This is partly a personal project. I play bass myself, and I am building Bassova
 - [x] Fretboard mapping to standard 4-string bass
 - [x] ASCII tab output broken into bars
 - [x] Desktop app with file picker, BPM detection, and tap tempo
+- [x] Ranked tempo candidate picker
 - [x] Rhythm quantization with offset correction and tempo fitting
 - [x] MIDI playback to check the result by ear
 - [ ] Sheet music export (MusicXML)
