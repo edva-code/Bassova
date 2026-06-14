@@ -18,19 +18,24 @@ Automatic music transcription is a hard, well known problem in general, but bass
 ## How it works
 
 1. Audio input: load a recorded bass file (wav, mp3, flac)
-2. Pitch and onset detection: identify which notes are played and when, using Spotify's Basic Pitch model
-3. Fretboard mapping: assign each note to a string and fret on a standard 4-string bass (EADG)
-4. Tab rendering: lay out the notes on a 4-line ASCII tab grid, broken into bars
-5. Source separation (planned): isolate bass from a full band recording before transcription
-6. Sheet music export (planned): render as standard notation via MusicXML
+2. Pitch and onset detection: identify which notes are played and when, using Spotify's Basic Pitch model constrained to the bass frequency range. Octave and harmonic ghost notes are filtered out, and very weak detections are dropped
+3. Fretboard mapping: assign each note to a string and fret on a standard 4-string bass (EADG), using a weighted position cost so the hand stays in a natural low position
+4. Rhythm quantization: correct the grid phase offset so a take that does not start on the beat still lines up, refine the tempo to best fit the detected onsets, then snap each note to a sixteenth-note grid
+5. Tab rendering: lay out the notes on a 4-line ASCII tab grid, broken into bars
+6. Playback: export the result to MIDI and play it back, so you can check by ear whether the tab matches the recording
+7. Source separation (planned): isolate bass from a full band recording before transcription
+8. Sheet music export (planned): render as standard notation via MusicXML
 
 ## Status
 
 Early working prototype. The full pipeline from audio file to ASCII tab is running inside a desktop app:
 
 - Load a bass recording and automatically detect its BPM (or use the tap tempo button)
-- Click "Generate tab" to run pitch detection, fretboard mapping, and tab rendering
+- Click "Generate tab" to run pitch detection, fretboard mapping, rhythm quantization, and tab rendering
 - The result is displayed as a 4-line ASCII tab broken into bars, with a horizontal scrollbar for longer recordings
+- Play the result back as MIDI to check by ear whether it matches the recording
+
+Pitch and fret accuracy is solid: detection is constrained to the bass range and harmonic ghost notes are filtered out. Rhythm is accurate once the BPM is roughly correct, since the tempo is then refined to fit the detected onsets. Automatic BPM detection on its own is still unreliable, so for the cleanest rhythm you may need to set or tap the tempo.
 
 What is not built yet: sheet music export, source separation for full mixes, live input.
 
@@ -44,6 +49,8 @@ This is partly a personal project. I play bass myself, and I am building Bassova
 - [x] Fretboard mapping to standard 4-string bass
 - [x] ASCII tab output broken into bars
 - [x] Desktop app with file picker, BPM detection, and tap tempo
+- [x] Rhythm quantization with offset correction and tempo fitting
+- [x] MIDI playback to check the result by ear
 - [ ] Sheet music export (MusicXML)
 - [ ] Source separation for full band recordings
 - [ ] Live input mode
@@ -51,8 +58,8 @@ This is partly a personal project. I play bass myself, and I am building Bassova
 
 ## Tech stack
 
-- Core engine: Python (librosa, basic-pitch, pretty_midi)
-- Desktop UI: PySide6
+- Core engine: Python (librosa, basic-pitch, numpy, pretty_midi)
+- Desktop UI: PySide6, with pygame for MIDI playback
 - Mobile UI: to be decided
 
 ## Getting started
