@@ -1,5 +1,6 @@
 basic-pitch
 librosa
+numpy
 pretty_midi
 PySide6
 pygame

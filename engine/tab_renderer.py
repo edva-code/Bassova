@@ -1,22 +1,23 @@
+from engine.quantize import quantize_notes
+
 STRING_NAMES = ["E", "A", "D", "G"]
 
 
 def render_tab(mapped_notes, bpm=120, subdivisions=16, bars_per_line=4):
-    if not mapped_notes:
+    playable = [n for n in mapped_notes if n.get("string") is not None]
+    if not playable:
         return ""
 
-    steps_per_second = (bpm / 60) * (subdivisions / 4)
-    last_time = max(n["start_time"] for n in mapped_notes)
-    total_steps = int(last_time * steps_per_second) + subdivisions
+    quantized = quantize_notes(playable, bpm, subdivisions)
+
+    # round the length up to a whole number of bars so every line is even
+    last_step = max(n["step"] for n in quantized)
+    total_steps = ((last_step // subdivisions) + 1) * subdivisions
 
     grid = [[""] * total_steps for _ in range(4)]
-
-    for note in mapped_notes:
-        if note["string"] is None:
-            continue
-        step = int(round(note["start_time"] * steps_per_second))
-        if step < total_steps:
-            grid[note["string"]][step] = str(note["fret"])
+    for note in quantized:
+        if note["step"] < total_steps:
+            grid[note["string"]][note["step"]] = str(note["fret"])
 
     steps_per_line = subdivisions * bars_per_line
     sections = []
