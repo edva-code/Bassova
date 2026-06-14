@@ -21,7 +21,7 @@ Automatic music transcription is a hard, well known problem in general, but bass
 2. Pitch and onset detection: identify which notes are played and when, using Spotify's Basic Pitch model constrained to the bass frequency range. Octave and harmonic ghost notes are filtered out, and very weak detections are dropped
 3. Fretboard mapping: assign each note to a string and fret on a standard 4-string bass (EADG), using a weighted position cost so the hand stays in a natural low position
 4. Rhythm quantization: correct the grid phase offset so a take that does not start on the beat still lines up, refine the tempo to best fit the detected onsets, then snap each note to a sixteenth-note grid
-5. Tab rendering: lay out the notes on a 4-line ASCII tab grid, broken into bars
+5. Tab rendering: lay out the notes on a 4-line ASCII tab grid, broken into bars, showing how long each note is held and the rests between notes
 6. Playback: export the result to MIDI and play it back, so you can check by ear whether the tab matches the recording
 7. Source separation (planned): isolate bass from a full band recording before transcription
 8. Sheet music export (planned): render as standard notation via MusicXML
@@ -33,6 +33,7 @@ Early working prototype. The full pipeline from audio file to ASCII tab is runni
 - Load a bass recording and pick from a short list of ranked tempo candidates (or set the BPM manually, or use the tap tempo button)
 - Click "Generate tab" to run pitch detection, fretboard mapping, rhythm quantization, and tab rendering
 - The result is displayed as a 4-line ASCII tab broken into bars, with a horizontal scrollbar for longer recordings
+- Note durations are visible in the tab: a fret followed by `=` means the note is still ringing, while `-` is silence or a rest, so `5=======` is a held note and `5-` is a short one
 - Play the result back as MIDI to check by ear whether it matches the recording
 
 Pitch and fret accuracy is solid: detection is constrained to the bass range and harmonic ghost notes are filtered out. Rhythm is accurate once the BPM is roughly correct, since the tempo is then refined to fit the detected onsets. A single automatic BPM guess is unreliable, so instead the app ranks several tempo candidates for you to choose from, and you can always set or tap the tempo.
@@ -48,6 +49,7 @@ This is partly a personal project. I play bass myself, and I am building Bassova
 - [x] Pitch and onset detection on an isolated bass recording
 - [x] Fretboard mapping to standard 4-string bass
 - [x] ASCII tab output broken into bars
+- [x] Note durations and rests shown in the tab
 - [x] Desktop app with file picker, BPM detection, and tap tempo
 - [x] Ranked tempo candidate picker
 - [x] Rhythm quantization with offset correction and tempo fitting

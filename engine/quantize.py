@@ -82,4 +82,32 @@ def quantize_notes(notes, bpm, subdivisions=16, refine=True):
         if current is None or distance < current[1]:
             best_per_step[index] = ({**note, "step": index}, distance)
 
-    return [best_per_step[i][0] for i in sorted(best_per_step)]
+    ordered = [best_per_step[i][0] for i in sorted(best_per_step)]
+    _add_durations(ordered, offset, step)
+    return ordered
+
+
+def _add_durations(ordered, offset, step):
+    """Fill in how long each note sounds and the rest after it, in grid steps.
+
+    For a monophonic bass the rhythmic slot of a note runs from its onset to the
+    next onset. We treat that whole slot as held unless the detected note end is
+    clearly short, in which case the leftover becomes a rest. Detected note ends
+    are noisy, so a small gap is ignored and only a clear early stop creates a rest.
+    """
+    for i, note in enumerate(ordered):
+        onset_step = note["step"]
+        end_step = int(round((note.get("end_time", note["start_time"]) - offset) / step))
+        detected = max(1, end_step - onset_step)
+
+        if i + 1 < len(ordered):
+            slot = max(1, ordered[i + 1]["step"] - onset_step)
+            if detected <= slot * 0.6:
+                sustain, rest = detected, slot - detected
+            else:
+                sustain, rest = slot, 0
+        else:
+            sustain, rest = detected, 0
+
+        note["sustain_steps"] = max(1, sustain)
+        note["rest_steps"] = max(0, rest)
